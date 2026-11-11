@@ -7,8 +7,8 @@ spring:
   data:
     redis:
       url: ${REDIS_URL:redis://localhost:6379}
-      timeout: 1500ms
-      connect-timeout: 1500ms
+      timeout: 5000ms
+      connect-timeout: 5000ms
 
 swiftfleet:
   store-name: ${STORE_NAME:SwiftFleet Hub — Indirapuram}

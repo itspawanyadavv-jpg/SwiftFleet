@@ -24,14 +24,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        String[] origins = java.util.Arrays.stream(properties.corsAllowedOrigins().split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .toArray(String[]::new);
-        String[] patterns = origins.length == 0 ? new String[]{"*"} : origins;
-
         registry.addEndpoint("/ws-swiftfleet")
-                .setAllowedOriginPatterns(patterns);
+                .setAllowedOriginPatterns(properties.parsedOriginPatterns());
 
         registry.addEndpoint("/ws-swiftfleet-sockjs")
                 .setAllowedOriginPatterns("*")

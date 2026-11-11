@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: swiftfleet-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: FLEET_STORE_MODE
+        value: redis
+      - key: REDIS_URL
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: STORE_NAME
+        value: SwiftFleet Hub — Indirapuram
+      - key: STORE_LAT
+        value: "28.646705"
+      - key: STORE_LNG
+        value: "77.444478"
+      - key: STORE_RADIUS_KM
+        value: "3.0"
