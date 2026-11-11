@@ -1,0 +1,42 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: swiftfleet-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    container_name: swiftfleet-backend
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: 8080
+      FLEET_STORE_MODE: redis
+      REDIS_URL: redis://redis:6379
+      STORE_NAME: ${STORE_NAME:-SwiftFleet Hub — Indirapuram}
+      STORE_LAT: ${STORE_LAT:-28.646705}
+      STORE_LNG: ${STORE_LNG:-77.444478}
+      STORE_RADIUS_KM: ${STORE_RADIUS_KM:-3.0}
+      DRC_STORE_API_URL: ${DRC_STORE_API_URL:-}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3005,http://localhost:5173,http://localhost:3000}
+    ports:
+      - "8085:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: swiftfleet-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3005:80"
+
