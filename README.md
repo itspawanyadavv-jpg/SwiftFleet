@@ -25,7 +25,7 @@ flowchart LR
 
 ---
 
-## Resume-Ready Bullet Points
+## Key Capabilities & Production Engineering Highlights
 
 - **Engineered a real-time hyperlocal dispatch engine** (`Java 17`, `Spring Boot 3`, `STOMP WebSockets`, `Redis`) using `GEOADD` and `GEOSEARCH` to match online riders within a 3 km radius in sub-millisecond time.
 - **Eliminated concurrent order double-booking** with an atomic Redis distributed lock (`SET NX EX`) and Lua-guarded unlock script, verified under multi-threaded `CountDownLatch` race-condition tests (`200 OK` vs `409 Conflict`).
@@ -51,7 +51,7 @@ flowchart LR
 4. **150m Geofence Guard + 4-Digit OTP Handshake**
    - Prevents riders from marking deliveries complete until inside the configured drop-off geofence (`150 m` default) and entering the exact 4-digit OTP (with attempt rate limiting).
 
-5. **Split-Screen Interview Mode & Live Architecture Inspector**
+5. **Dual-Console Dispatcher & Live Telemetry Inspector**
    - `/` renders the mobile-frame Rider App alongside the Live Map, Customer OTP & Chaos Lab, and a real-time **Redis & STOMP Inspector** logging commands and latencies.
    - `/rider` renders a standalone mobile view — open it on a phone browser to stream real **HTML5 Geolocation (`watchPosition`)** directly to your laptop map.
 
@@ -99,4 +99,36 @@ cd backend && mvn test
 # Frontend TypeScript check, Vitest unit tests, and production Vite bundle
 cd frontend && npm run typecheck && npm test && npm run build
 ```
+
+---
+
+## Live Deployments & Author
+
+- **Author:** Pawan Kumar Yadav ([GitHub](https://github.com/itspawanyadavv-jpg))
+- **Production AWS EC2 Deployment:**
+  - **Web Dispatch Console:** [https://swiftfleet-13-206-156-137.sslip.io](https://swiftfleet-13-206-156-137.sslip.io)
+  - **Mobile Rider Telemetry:** [https://swiftfleet-13-206-156-137.sslip.io/rider](https://swiftfleet-13-206-156-137.sslip.io/rider)
+  - **Swagger OpenAPI Documentation:** [https://swiftfleet-13-206-156-137.sslip.io/swagger-ui.html](https://swiftfleet-13-206-156-137.sslip.io/swagger-ui.html)
+- **Hyperlocal Commerce Trilogy:**
+  - **WhatsCart AI (Conversational WhatsApp Ordering):** [https://whatscart-13-206-156-137.sslip.io](https://whatscart-13-206-156-137.sslip.io)
+  - **DRC Krishna Gen Store (Fulfillment Engine):** [https://13-206-156-137.sslip.io](https://13-206-156-137.sslip.io)
+
+---
+
+## Architectural Decision Records (ADRs)
+
+1. **Redis Geo vs. PostgreSQL PostGIS:**
+   - *Context:* Riders transmit GPS coordinates every 1–3 seconds during transit.
+   - *Decision:* Used Redis `GEOADD` and `GEOSEARCH` in-memory sorted sets instead of disk-backed spatial PostGIS indexes.
+   - *Trade-Off:* Achieves sub-millisecond lookup latency ($<1$ ms) and zero disk I/O bottlenecks during peak order bursts, with persistence delegated to background Redis AOF snapshots.
+
+2. **Distributed Lock (`SET NX EX`) vs. Database Pessimistic Locking (`SELECT FOR UPDATE`):**
+   - *Context:* Multiple nearby riders tapping "Accept" simultaneously on high-priority orders.
+   - *Decision:* Atomic Redis `SET lock:order:{id} {riderId} NX EX 30` with Lua script verification for lock release.
+   - *Trade-Off:* Offloads high-frequency contention away from the relational database connection pool, eliminating database connection starvation and deadlocks during flash sales.
+
+3. **STOMP over WebSockets vs. Server-Sent Events (SSE) / Polling:**
+   - *Context:* Bi-directional communication is required: riders stream continuous GPS coordinates while customers receive live ETA and polyline updates.
+   - *Decision:* STOMP protocol over WebSocket provides topic subscriptions (`/topic/order/{id}/telemetry`) and application destination routing (`/app/rider/location`) over a single persistent full-duplex TCP socket.
+
 

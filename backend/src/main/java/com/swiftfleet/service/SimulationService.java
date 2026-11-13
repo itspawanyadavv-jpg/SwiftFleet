@@ -5,6 +5,7 @@ import com.swiftfleet.model.LatLng;
 import com.swiftfleet.model.OrderStatus;
 import com.swiftfleet.model.Rider;
 import com.swiftfleet.store.FleetGeoLockStore;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -13,17 +14,21 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Drives simulated road-polyline movement over STOMP WebSockets so recruiters
- * can watch an entire delivery execute in ~20 seconds directly in the browser.
+ * Drives simulated road-polyline GPS telemetry over STOMP WebSockets for
+ * end-to-end integration testing, live driver simulation, and route latency profiling.
  */
 @Service
 public class SimulationService {
 
     private static final Logger log = LoggerFactory.getLogger(SimulationService.class);
+    private static final AtomicInteger THREAD_COUNTER = new AtomicInteger(0);
 
     private final FleetGeoLockStore store;
     private final RouteService routeService;
@@ -31,7 +36,20 @@ public class SimulationService {
     private final DispatchService dispatchService;
     private final InspectorService inspectorService;
 
-    private final ExecutorService executor = Executors.newCachedThreadPool();
+    // Bounded thread pool with CallerRunsPolicy to prevent OOM thread exhaustion under high simulation load
+    private final ExecutorService executor = new ThreadPoolExecutor(
+            4,
+            16,
+            60L,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(100),
+            r -> {
+                Thread t = new Thread(r, "simulation-worker-" + THREAD_COUNTER.incrementAndGet());
+                t.setDaemon(true);
+                return t;
+            },
+            new ThreadPoolExecutor.CallerRunsPolicy()
+    );
     private final ConcurrentHashMap<String, AtomicBoolean> activeTokens = new ConcurrentHashMap<>();
 
     public SimulationService(
@@ -162,6 +180,20 @@ public class SimulationService {
             if (i < points.size() - 1) {
                 Thread.sleep(delayMs);
             }
+        }
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        log.info("Gracefully shutting down SimulationService thread pool");
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(3, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
         }
     }
 }

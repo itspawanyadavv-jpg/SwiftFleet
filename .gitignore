@@ -19,3 +19,7 @@ frontend/dist/
 frontend/.vite/
 *.tsbuildinfo
 
+# Interview Documentation
+PROJECT-INTERVIEW-PREPARATION/
+
+
